@@ -15,6 +15,7 @@ class EventStatus(StrEnum):
 class State(StrEnum):
     OPEN = "open"
     CLOSED = "closed"
+    DELETED = "deleted"
 
 class Priority(StrEnum):
     HIGH = "high"
