@@ -89,13 +89,18 @@ async def receive_github_webhook(
             print(f" Duplicate delivery ignored: {delivery_id}")
             return {"status": "already_received", "delivery_id": delivery_id}
 
-        # 5. Persist raw event to Postgres
-        await crud.create_webhook_event(
-            db=db,
-            delivery_id=delivery_id,
-            event_type=event_type,
-            payload=payload,
-        )
+        try:
+            # 5. Persist raw event to Postgres
+            await crud.create_webhook_event(
+                db=db,
+                delivery_id=delivery_id,
+                event_type=event_type,
+                payload=payload,
+            )
+        except IntegrityError:
+            await db.rollback()
+            print(f"⚠️ Concurrent duplicate delivery caught: {delivery_id}")
+            return {"status": "already_received", "delivery_id": delivery_id}
 
         # 6. If it's an issue event, create/update the Issue row!
         if event_type == "issues":
