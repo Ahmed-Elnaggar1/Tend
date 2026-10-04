@@ -3,11 +3,15 @@ import hashlib
 import hmac
 import json
 import os
+from dotenv import load_dotenv
+
 from arq import create_pool
 from arq.connections import RedisSettings
-from dotenv import load_dotenv
+
 from fastapi import Depends, FastAPI, HTTPException, Request, status
+
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app import crud
 from app.db import get_db_session

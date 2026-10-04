@@ -9,6 +9,9 @@ from app.ai.service import triage_issue_with_ai, generate_embedding
 from app.db import sessionmaker
 from app.models import EventStatus, Issue, Priority, WebhookEvent
 
+from app.github_client import post_issue_comment, add_issue_labels
+
+
 load_dotenv()
 
 
@@ -44,12 +47,35 @@ async def triage_issue_task(
           f" duplicate of #{duplicate.issue_number} ('{duplicate.title}')."
           " Please check the ongoing discussion and solution there!"
       )
+      try:
+        await post_issue_comment(issue.repo_name, issue.issue_number, issue.draft_reply)
+        await add_issue_labels(issue.repo_name, issue.issue_number, ["duplicate"])
+        print(f"💬 [GitHub Bot] Posted duplicate comment & added label to #{issue.issue_number}")
+      except Exception as e:
+        print(f"⚠️ [GitHub Bot Error]: {e}")
     else:
       # 3. Not a duplicate? Run full AI triage!
       ai_result = await triage_issue_with_ai(title, body)
       issue.priority = Priority(ai_result.priority.value)
       issue.ai_summary = ai_result.summary
       issue.draft_reply = ai_result.draft_reply
+            # --- GitHub Bot Action for Fresh Issue ---
+      try:
+          labels = [f"priority: {issue.priority.value.lower()}", f"type: {ai_result.category.value.lower()}"]
+          await add_issue_labels(issue.repo_name, issue.issue_number, labels)
+          
+          bot_comment = (
+              f"### 🤖 Tend AI Triage\n\n"
+              f"**Summary**: {ai_result.summary}\n\n"
+              f"**Priority**: `{ai_result.priority.value}` | **Category**: `{ai_result.category.value}`\n\n"
+              f"---\n"
+              f"{ai_result.draft_reply}"
+          )
+          await post_issue_comment(issue.repo_name, issue.issue_number, bot_comment)
+          print(f"💬 [GitHub Bot] Labeled #{issue.issue_number} and posted triage comment!")
+      except Exception as e:
+          print(f"⚠️ [GitHub Bot Error]: {e}")
+
     # Mark the event completed
     event = await db.scalar(
         select(WebhookEvent).where(WebhookEvent.delivery_id == delivery_id)
