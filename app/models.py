@@ -4,6 +4,8 @@ from enum import StrEnum
 
 from sqlalchemy import JSON, DateTime, String, func, Uuid, Enum, Integer
 from sqlalchemy.orm import Mapped, mapped_column
+from pgvector.sqlalchemy import Vector
+
 from app.db import Base
 
 class EventStatus(StrEnum):
@@ -49,3 +51,8 @@ class Issue(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+    embedding: Mapped[list[float]] = mapped_column(Vector(768),nullable=True)
+    duplicate_of_id: Mapped[PyUUID|None] = mapped_column(Uuid(as_uuid=True),nullable=True)
+
+    

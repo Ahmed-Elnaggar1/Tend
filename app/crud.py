@@ -116,5 +116,34 @@ async def process_issue_triage(
         print(f"✅ AI Triage completed for issue #{issue.issue_number}")
         print(f"   Priority: {issue.priority}")
         print(f"   Summary: {issue.ai_summary}")
+
+async def find_most_similar_issue(
+    db: AsyncSession,
+    repo_name: str,
+    embedding: list[float],
+    exclude_issue_id: UUID,
+    max_distance: float = 0.2,
+) -> Issue | None:
+  query = (
+      select(Issue)
+      .where(
+          Issue.repo_name == repo_name,
+          Issue.id != exclude_issue_id,
+          Issue.embedding.is_not(None),
+          Issue.embedding.cosine_distance(embedding) <= max_distance,
+
+      )
+      .order_by(Issue.embedding.cosine_distance(embedding))
+      .limit(1)
+  )
+
+  result = await db.scalar(query)
+  if result:
+    # Check if the closest match is within our duplicate threshold (distance < 0.2)
+    # If the distance is small enough, it's a duplicate!
+    return result
+
+  return None
+
     
     

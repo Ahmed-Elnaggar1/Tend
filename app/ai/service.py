@@ -27,6 +27,17 @@ async def triage_issue_with_ai(title: str, body: str | None) -> TriageResult:
     raise RuntimeError("Empty response from AI model")
   return response.parsed
 
+async def generate_embedding(text:str) -> list[float]:
+    response = client.models.embed_content(
+        model = "gemini-embedding-001",
+        contents=text,
+        config=types.EmbedContentConfig(
+            task_type = "SEMANTIC_SIMILARITY",
+            output_dimensionality = 768,
+        )
+    )
+    return response.embeddings[0].values
+
 #   try:
 #     return TriageResult.model_validate_json(response.text)
 #   except ValidationError as e:
