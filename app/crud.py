@@ -1,8 +1,17 @@
+from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import EventStatus, WebhookEvent
-from app.models import Issue, State
+from app.models import (
+    EventStatus,
+    WebhookEvent,
+    Issue,
+    Priority,
+    State
+    )
+from app.ai.service import triage_issue_with_ai
+from app.db import sessionmaker
 
 # 1. Read: Check if this delivery was already recorded
 async def get_webhook_event_by_delivery_id(
@@ -77,3 +86,35 @@ async def upsert_issue_from_payload(
   await db.commit()
   await db.refresh(issue)
   return issue
+
+async def process_issue_triage(
+    issue_id: UUID,
+    delivery_id: str,
+    title:str,
+    body:str|None,
+) -> None:
+    print(f"🤖 Starting AI triage for issue {title}...")
+
+    ai_result = await triage_issue_with_ai(title,body)
+    async with sessionmaker() as db:
+        issue = await db.get(Issue,issue_id)
+        if not issue:
+            print(f"❌ Issue {issue_id} not found in DB!")
+            return
+        
+        issue.priority = ai_result.priority
+        issue.ai_summary = ai_result.summary
+        issue.draft_reply = ai_result.draft_reply
+        event = await db.scalar(
+            select(WebhookEvent).where(
+                WebhookEvent.delivery_id == delivery_id
+            )
+        )
+        if event:
+            event.status = EventStatus.COMPLETED
+        await db.commit()
+        print(f"✅ AI Triage completed for issue #{issue.issue_number}")
+        print(f"   Priority: {issue.priority}")
+        print(f"   Summary: {issue.ai_summary}")
+    
+    

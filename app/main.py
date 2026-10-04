@@ -3,11 +3,19 @@ import hmac
 import json
 import os
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import(
+    Depends, 
+    FastAPI,
+    HTTPException,
+    Request,
+    status,
+    BackgroundTasks)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db_session
 from app import crud
+from app.ai.service import triage_issue_with_ai
+
 
 load_dotenv()
 WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
@@ -46,6 +54,7 @@ app = FastAPI()
 @app.post("/webhooks/github", status_code=status.HTTP_202_ACCEPTED)
 async def receive_github_webhook(
     request: Request,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db_session),
 ):
     # 1. Read raw body & headers
@@ -83,9 +92,16 @@ async def receive_github_webhook(
           saved_issue = await crud.upsert_issue_from_payload(
               db=db, payload=payload, action=action
           )
-          if saved_issue:
+          if saved_issue and action in ["opened", "edited"]:
             print(
                 f" Upserted issue #{saved_issue.issue_number} ({saved_issue.state}) into issues table!"
+            )
+            background_tasks.add_task(
+                crud.process_issue_triage,
+                issue_id=saved_issue.id,
+                delivery_id=delivery_id,
+                title=saved_issue.title,
+                body=saved_issue.body,
             )
 
         print(f" Saved webhook event to DB: {event_type} (Delivery ID: {delivery_id})")
