@@ -19,6 +19,7 @@ class Settings:
     
     # GitHub App
     GITHUB_APP_ID: str = os.getenv("GITHUB_APP_ID", "")
+    GITHUB_PRIVATE_KEY: str = os.getenv("GITHUB_PRIVATE_KEY", "").strip()
     GITHUB_PRIVATE_KEY_PATH: str = os.getenv("GITHUB_PRIVATE_KEY_PATH", "")
 
 settings = Settings()

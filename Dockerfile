@@ -18,7 +18,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source code
 COPY . .
 
+# Ensure start script has execute permissions
+RUN chmod +x start.sh
+
 EXPOSE 8000
 
-# Default command runs the web server
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default command starts both background worker and web server
+CMD ["./start.sh"]

@@ -8,12 +8,17 @@ from app.config import settings
 
 def get_app_jwt() -> str:
     """Generate a signed JWT asserting our GitHub App identity (valid 8 mins)."""
-    # 1. Read the RSA private key file
-    pem_path = Path(settings.GITHUB_PRIVATE_KEY_PATH)
-    if not pem_path.exists():
-        raise FileNotFoundError(f"GitHub private key not found at {pem_path}")
+    # 1. Read the RSA private key from env var string or file path
+    private_key = settings.GITHUB_PRIVATE_KEY.replace("\\n", "\n").strip()
+    if not private_key and settings.GITHUB_PRIVATE_KEY_PATH:
+        pem_path = Path(settings.GITHUB_PRIVATE_KEY_PATH)
+        if pem_path.exists():
+            private_key = pem_path.read_text().strip()
     
-    private_key = pem_path.read_text()
+    if not private_key:
+        raise ValueError(
+            "GitHub private key is not configured. Provide GITHUB_PRIVATE_KEY in env or valid GITHUB_PRIVATE_KEY_PATH."
+        )
 
     # 2. Prepare JWT claims required by GitHub
     now = int(time.time())
