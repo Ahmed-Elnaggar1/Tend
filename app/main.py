@@ -117,39 +117,18 @@ async def receive_github_webhook(
                 print(
                     f" Upserted issue #{saved_issue.issue_number} ({saved_issue.state}) into issues table!"
                 )
-                pool = getattr(request.app.state, "arq_pool", None)
-                if pool:
-                    try:
-                        # 🚀 Enqueue background task in Redis via ARQ!
-                        await pool.enqueue_job(
-                            "triage_issue_task",
-                            issue_id=str(saved_issue.id),
-                            delivery_id=delivery_id,
-                            title=saved_issue.title,
-                            body=saved_issue.body,
-                        )
-                        print(f" Enqueued AI triage job in Redis for #{saved_issue.issue_number}")
-                    except Exception as e:
-                        print(f"⚠️ Redis enqueue failed ({e}), executing via background task fallback")
-                        background_tasks.add_task(
-                            triage_issue_task,
-                            None,
-                            str(saved_issue.id),
-                            delivery_id,
-                            saved_issue.title,
-                            saved_issue.body,
-                        )
-                else:
-                    # Serverless direct background execution!
-                    background_tasks.add_task(
-                        triage_issue_task,
+                # Execute AI triage directly so GitHub bot comments immediately!
+                try:
+                    await triage_issue_task(
                         None,
                         str(saved_issue.id),
                         delivery_id,
                         saved_issue.title,
                         saved_issue.body,
                     )
-                    print(f" Scheduled background AI triage task for #{saved_issue.issue_number}")
+                    print(f" Successfully triaged and commented on #{saved_issue.issue_number}")
+                except Exception as e:
+                    print(f"⚠️ Error triaging issue #{saved_issue.issue_number}: {e}")
 
         print(f" Saved webhook event to DB: {event_type} (Delivery ID: {delivery_id})")
 
