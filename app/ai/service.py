@@ -7,7 +7,7 @@ from app.ai.schemas import TriageResult
 
 MODEL_NAME = "gemini-flash-lite-latest"
 
-client = genai.Client(api_key=settings.GEMINI_API_KEY)
+client = genai.Client(api_key=settings.GEMINI_API_KEY or "dummy-key-for-testing")
 
 async def triage_issue_with_ai(title: str, body: str | None) -> TriageResult:
   prompt = build_triage_prompt(title, body)

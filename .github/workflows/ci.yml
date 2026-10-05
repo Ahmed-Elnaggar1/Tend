@@ -20,8 +20,8 @@ jobs:
         ports:
           - 5433:5432
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
+          --health-cmd "pg_isready -U postgres -d triage_db"
+          --health-interval 5s
           --health-timeout 5s
           --health-retries 5
 
@@ -31,9 +31,15 @@ jobs:
           - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
-          --health-interval 10s
+          --health-interval 5s
           --health-timeout 5s
           --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://localhost:6379
+      GITHUB_WEBHOOK_SECRET: my_test_secret
+      GEMINI_API_KEY: dummy-key-for-testing
 
     steps:
       - name: Check out repository
@@ -51,15 +57,9 @@ jobs:
           pip install -r requirements.txt
 
       - name: Initialize Database & Vector Extension
-        env:
-          DATABASE_URL: postgresql+asyncpg://postgres:postgrespassword@localhost:5433/triage_db
         run: |
           python -m app.create_tables
 
       - name: Run Pytest Suite
-        env:
-          DATABASE_URL: postgresql+asyncpg://postgres:postgrespassword@localhost:5433/triage_db
-          REDIS_URL: redis://localhost:6379
-          GITHUB_WEBHOOK_SECRET: my_test_secret
         run: |
           pytest -v
