@@ -2,10 +2,11 @@ from contextlib import asynccontextmanager
 import hashlib
 import hmac
 import json
+from pathlib import Path
 from arq import create_pool
 from arq.connections import RedisSettings
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 
@@ -16,6 +17,7 @@ from app import crud
 from app.config import settings
 from app.db import get_db_session
 from app.models import State, Priority
+from app.worker import triage_issue_task
 
 
 def verify_github_signature(body_bytes: bytes, signature_header: str | None):
@@ -47,13 +49,18 @@ def verify_github_signature(body_bytes: bytes, signature_header: str | None):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Connect to Redis for the ARQ job queue on startup
-    app.state.arq_pool = await create_pool(RedisSettings.from_dsn(settings.REDIS_URL))
-    print("🔌 Connected to Redis job queue (ARQ)!")
+    # Connect to Redis for the ARQ job queue on startup (graceful fallback if serverless)
+    try:
+        app.state.arq_pool = await create_pool(RedisSettings.from_dsn(settings.REDIS_URL))
+        print("🔌 Connected to Redis job queue (ARQ)!")
+    except Exception as e:
+        print(f"⚠️ Redis connection optional/deferred: {e}")
+        app.state.arq_pool = None
     yield
-    # Clean up connection pool on shutdown
-    await app.state.arq_pool.close()
-    print(" Disconnected from Redis job queue.")
+    # Clean up connection pool on shutdown if initialized
+    if getattr(app.state, "arq_pool", None):
+        await app.state.arq_pool.close()
+        print(" Disconnected from Redis job queue.")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -62,6 +69,7 @@ app = FastAPI(lifespan=lifespan)
 @app.post("/webhooks/github", status_code=status.HTTP_202_ACCEPTED)
 async def receive_github_webhook(
     request: Request,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db_session),
 ):
     # 1. Read raw body & headers
@@ -109,15 +117,39 @@ async def receive_github_webhook(
                 print(
                     f" Upserted issue #{saved_issue.issue_number} ({saved_issue.state}) into issues table!"
                 )
-                # 🚀 Enqueue background task in Redis via ARQ!
-                await request.app.state.arq_pool.enqueue_job(
-                    "triage_issue_task",
-                    issue_id=str(saved_issue.id),
-                    delivery_id=delivery_id,
-                    title=saved_issue.title,
-                    body=saved_issue.body,
-                )
-                print(f" Enqueued AI triage job in Redis for #{saved_issue.issue_number}")
+                pool = getattr(request.app.state, "arq_pool", None)
+                if pool:
+                    try:
+                        # 🚀 Enqueue background task in Redis via ARQ!
+                        await pool.enqueue_job(
+                            "triage_issue_task",
+                            issue_id=str(saved_issue.id),
+                            delivery_id=delivery_id,
+                            title=saved_issue.title,
+                            body=saved_issue.body,
+                        )
+                        print(f" Enqueued AI triage job in Redis for #{saved_issue.issue_number}")
+                    except Exception as e:
+                        print(f"⚠️ Redis enqueue failed ({e}), executing via background task fallback")
+                        background_tasks.add_task(
+                            triage_issue_task,
+                            None,
+                            str(saved_issue.id),
+                            delivery_id,
+                            saved_issue.title,
+                            saved_issue.body,
+                        )
+                else:
+                    # Serverless direct background execution!
+                    background_tasks.add_task(
+                        triage_issue_task,
+                        None,
+                        str(saved_issue.id),
+                        delivery_id,
+                        saved_issue.title,
+                        saved_issue.body,
+                    )
+                    print(f" Scheduled background AI triage task for #{saved_issue.issue_number}")
 
         print(f" Saved webhook event to DB: {event_type} (Delivery ID: {delivery_id})")
 
@@ -175,10 +207,17 @@ async def get_issues(
         for i in issues
     ]
 # Mount static folder
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
 @app.get("/dashboard")
 async def serve_dashboard():
-    return FileResponse("app/static/index.html")
+    index_path = STATIC_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    return {"error": "Dashboard index.html not found"}
+
 @app.get("/")
 async def root():
     return RedirectResponse(url="/dashboard")
