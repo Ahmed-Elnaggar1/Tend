@@ -8,11 +8,11 @@
   --bg-card: rgba(17, 24, 39, 0.85);
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-active: rgba(99, 102, 241, 0.4);
-  
+
   --text-primary: #f9fafb;
   --text-secondary: #9ca3af;
   --text-muted: #6b7280;
-  
+
   --accent-indigo: #6366f1;
   --accent-purple: #8b5cf6;
   --accent-emerald: #10b981;
@@ -146,8 +146,17 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.9); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.4;
+    transform: scale(0.9);
+  }
 }
 
 .btn-refresh {
@@ -175,8 +184,13 @@ body {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ==========================================================================
@@ -257,9 +271,17 @@ body {
   color: var(--text-muted);
 }
 
-.text-emerald { color: var(--accent-emerald); }
-.text-crimson { color: #f87171; }
-.text-indigo { color: #a5b4fc; }
+.text-emerald {
+  color: var(--accent-emerald);
+}
+
+.text-crimson {
+  color: #f87171;
+}
+
+.text-indigo {
+  color: #a5b4fc;
+}
 
 /* ==========================================================================
    Controls Bar: Filter Tabs & Search
@@ -548,8 +570,15 @@ body {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-3px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Meta Footer */

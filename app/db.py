@@ -1,17 +1,14 @@
 from collections.abc import AsyncGenerator
-import os 
-from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     create_async_engine,
     async_sessionmaker,
 )
 from sqlalchemy.orm import DeclarativeBase
-load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
+from app.config import settings
 
 engine = create_async_engine(
-    DATABASE_URL,
+    settings.DATABASE_URL,
     echo=True,
 )
 sessionmaker = async_sessionmaker(bind =engine, 
@@ -20,15 +17,9 @@ class_=AsyncSession,
  autoflush=False,
  )
 
-async def get_db_session()->AsyncGenerator[AsyncSession,None]:
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     async with sessionmaker() as session:
-        try:
-            yield session
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+        yield session
 
 class Base(DeclarativeBase):
     pass

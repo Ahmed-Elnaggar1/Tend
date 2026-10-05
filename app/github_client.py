@@ -1,19 +1,15 @@
-import os
 import time
 from pathlib import Path
-from dotenv import load_dotenv
 import httpx
 import jwt
 
-load_dotenv()
+from app.config import settings
 
-APP_ID = os.getenv("GITHUB_APP_ID")
-PRIVATE_KEY_PATH = os.getenv("GITHUB_PRIVATE_KEY_PATH")
 
 def get_app_jwt() -> str:
-    """Generate a signed JWT asserting our GitHub App identity (valid 10 mins)."""
+    """Generate a signed JWT asserting our GitHub App identity (valid 8 mins)."""
     # 1. Read the RSA private key file
-    pem_path = Path(PRIVATE_KEY_PATH)
+    pem_path = Path(settings.GITHUB_PRIVATE_KEY_PATH)
     if not pem_path.exists():
         raise FileNotFoundError(f"GitHub private key not found at {pem_path}")
     
@@ -27,7 +23,7 @@ def get_app_jwt() -> str:
         # Expiration time (GitHub allows max 10 mins; use 8 mins to tolerate local clock drift)
         "exp": now + (8 * 60),
         # Issuer: our GitHub App ID
-        "iss": APP_ID,
+        "iss": settings.GITHUB_APP_ID,
     }
     # 3. Sign using RSA algorithm SHA-256
     encoded_jwt = jwt.encode(payload, private_key, algorithm="RS256")

@@ -2,10 +2,6 @@ from contextlib import asynccontextmanager
 import hashlib
 import hmac
 import json
-import os
-from dotenv import load_dotenv
-from typing import Optional
-
 from arq import create_pool
 from arq.connections import RedisSettings
 
@@ -13,17 +9,13 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
 from app import crud
+from app.config import settings
 from app.db import get_db_session
 from app.models import State, Priority
-
-load_dotenv()
-WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "").strip()
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
 
 def verify_github_signature(body_bytes: bytes, signature_header: str | None):
@@ -33,14 +25,14 @@ def verify_github_signature(body_bytes: bytes, signature_header: str | None):
             detail="Missing signature header",
         )
 
-    if not WEBHOOK_SECRET:
+    if not settings.GITHUB_WEBHOOK_SECRET:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Webhook secret not configured",
         )
 
     hash_object = hmac.new(
-        key=WEBHOOK_SECRET.encode("utf-8"),
+        key=settings.GITHUB_WEBHOOK_SECRET.encode("utf-8"),
         msg=body_bytes,
         digestmod=hashlib.sha256,
     )
@@ -56,7 +48,7 @@ def verify_github_signature(body_bytes: bytes, signature_header: str | None):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Connect to Redis for the ARQ job queue on startup
-    app.state.arq_pool = await create_pool(RedisSettings.from_dsn(REDIS_URL))
+    app.state.arq_pool = await create_pool(RedisSettings.from_dsn(settings.REDIS_URL))
     print("🔌 Connected to Redis job queue (ARQ)!")
     yield
     # Clean up connection pool on shutdown

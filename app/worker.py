@@ -1,18 +1,13 @@
-from app import crud
-import os
 from uuid import UUID
 from arq.connections import RedisSettings
-from dotenv import load_dotenv
 from sqlalchemy import select
 
+from app import crud
 from app.ai.service import triage_issue_with_ai, generate_embedding
+from app.config import settings
 from app.db import sessionmaker
 from app.models import EventStatus, Issue, Priority, WebhookEvent
-
 from app.github_client import post_issue_comment, add_issue_labels
-
-
-load_dotenv()
 
 
 async def triage_issue_task(
@@ -88,6 +83,4 @@ async def triage_issue_task(
 
 class WorkerSettings:
     functions = [triage_issue_task]
-    redis_settings = RedisSettings.from_dsn(
-        os.getenv("REDIS_URL", "redis://localhost:6379")
-    )
+    redis_settings = RedisSettings.from_dsn(settings.REDIS_URL)
