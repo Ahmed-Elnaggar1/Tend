@@ -1,3 +1,13 @@
+---
+title: Tend
+emoji: ⚡
+colorFrom: indigo
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # ⚡ Tend — Autonomous Open-Source Maintainer Triage Platform
 
 An event-driven, production-grade AI maintainer assistant for GitHub repositories. Tend automatically ingests GitHub webhook events, performs semantic duplicate detection using vector embeddings (`pgvector`), triages issues using Google Gemini structured outputs, autonomous labeling, and posts intelligent responses directly to GitHub via an authentic GitHub App bot.

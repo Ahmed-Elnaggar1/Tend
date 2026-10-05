@@ -21,7 +21,7 @@ COPY . .
 # Ensure start script has execute permissions
 RUN chmod +x start.sh
 
-EXPOSE 8000
+EXPOSE 7860
 
 # Default command starts both background worker and web server
 CMD ["./start.sh"]
