@@ -1,6 +1,10 @@
+from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import (
+  select,
+  func,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
@@ -145,5 +149,46 @@ async def find_most_similar_issue(
 
   return None
 
+
+async def count_issues(
+  db:AsyncSession,
+  state: State|None=None,
+  priority: Priority|None=None,
+  is_duplicate: bool|None=None,
+) ->int:
+  """Count issues matching optional filters."""
+  query=select(func.count(Issue.id))
     
+  if state is not None:
+    query = query.where(Issue.state == state)
+  if priority is not None:
+    query = query.where(Issue.priority == priority)
+  if is_duplicate is True:
+    query = query.where(Issue.duplicate_of_id.is_not(None))
+  elif is_duplicate is False:
+    query = query.where(Issue.duplicate_of_id.is_(None))
+    
+  result = await db.scalar(query)
+  return result or 0
+    
+
+async def get_issues(
+  db:AsyncSession,
+  priority: Priority | None = None,
+  search: str | None = None,
+  is_duplicate: bool|None=None,
+) -> Sequence[Issue]:
+  """Retrieve a list of issues with optional filtering."""
+  query = select(Issue).order_by(Issue.created_at.desc())
+
+  if priority is not None:
+    query = query.where(Issue.priority == priority)
+  if is_duplicate is True:
+    query = query.where(Issue.duplicate_of_id.is_not(None))
+  elif is_duplicate is False:
+    query = query.where(Issue.duplicate_of_id.is_(None))
+  if search:
+    query = query.where(Issue.title.ilike(f"%{search}%"))
+  result = await db.scalars(query)
+  return result.all()
     

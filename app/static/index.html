@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tend AI — Open-Source Maintainer Triage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="brand">
+        <div class="brand-icon">⚡</div>
+        <div class="brand-text">
+          <span class="brand-name">Tend</span>
+          <span class="brand-badge">AI Triage</span>
+        </div>
+      </div>
+      <div class="repo-badge">
+        <svg class="gh-icon" height="18" width="18" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+        <span id="repoName">Ahmed-Elnaggar1/Tend</span>
+      </div>
+      <div class="nav-actions">
+        <div class="system-status">
+          <span class="status-pulse"></span>
+          <span>pgvector + Redis Active</span>
+        </div>
+        <button id="refreshBtn" class="btn-refresh" title="Refresh Feed">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="dashboard-container">
+    <!-- Hero / Headline -->
+    <div class="dashboard-header">
+      <div>
+        <h1 class="page-title">Issue Triage Center</h1>
+        <p class="page-subtitle">Real-time semantic deduplication & automated AI triage stream</p>
+      </div>
+    </div>
+
+    <!-- Live Metric Cards -->
+    <section class="metrics-grid">
+      <div class="metric-card" id="cardTotal">
+        <div class="metric-header">
+          <span class="metric-label">Total Ingested</span>
+          <span class="metric-icon">📦</span>
+        </div>
+        <div class="metric-value" id="statTotal">—</div>
+        <div class="metric-subtext">Issues recorded in Postgres</div>
+      </div>
+
+      <div class="metric-card" id="cardOpen">
+        <div class="metric-header">
+          <span class="metric-label">Open Queue</span>
+          <span class="metric-icon">🟢</span>
+        </div>
+        <div class="metric-value text-emerald" id="statOpen">—</div>
+        <div class="metric-subtext">Currently active issues</div>
+      </div>
+
+      <div class="metric-card" id="cardHigh">
+        <div class="metric-header">
+          <span class="metric-label">High Priority</span>
+          <span class="metric-icon">🔥</span>
+        </div>
+        <div class="metric-value text-crimson" id="statHigh">—</div>
+        <div class="metric-subtext">Needs immediate attention</div>
+      </div>
+
+      <div class="metric-card" id="cardDuplicates">
+        <div class="metric-header">
+          <span class="metric-label">Duplicates Caught</span>
+          <span class="metric-icon">🎯</span>
+        </div>
+        <div class="metric-value text-indigo" id="statDuplicates">—</div>
+        <div class="metric-subtext">Intercepted via pgvector &lt;=&gt;</div>
+      </div>
+    </section>
+
+    <!-- Controls Bar: Filter Pills + Search Input -->
+    <section class="controls-bar">
+      <div class="filter-tabs">
+        <button class="filter-pill active" data-filter="all">All Issues</button>
+        <button class="filter-pill" data-filter="high">🔥 High Priority</button>
+        <button class="filter-pill" data-filter="medium">⚡ Medium</button>
+        <button class="filter-pill" data-filter="low">💤 Low</button>
+        <button class="filter-pill" data-filter="duplicates">🎯 Duplicates Only</button>
+      </div>
+      <div class="search-box">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="searchInput" placeholder="Search by title, author, or #..." autocomplete="off">
+      </div>
+    </section>
+
+    <!-- Issues Feed Stream -->
+    <section class="issues-section">
+      <div class="section-header">
+        <span id="issuesCountLabel">Showing 0 issues</span>
+        <span class="auto-update-tag">⚡ Live API Feed</span>
+      </div>
+
+      <div id="issuesFeed" class="issues-list">
+        <!-- Dynamically injected by app.js -->
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading triaged issues from Postgres...</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

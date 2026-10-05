@@ -5,9 +5,7 @@ from dotenv import load_dotenv
 import httpx
 import jwt
 
-
 load_dotenv()
-
 
 APP_ID = os.getenv("GITHUB_APP_ID")
 PRIVATE_KEY_PATH = os.getenv("GITHUB_PRIVATE_KEY_PATH")
@@ -26,8 +24,8 @@ def get_app_jwt() -> str:
     payload = {
         # Issued at time (subtract 60 seconds to tolerate server clock drift)
         "iat": now - 60,
-        # Expiration time (10 minutes max allowed by GitHub)
-        "exp": now + (10 * 60),
+        # Expiration time (GitHub allows max 10 mins; use 8 mins to tolerate local clock drift)
+        "exp": now + (8 * 60),
         # Issuer: our GitHub App ID
         "iss": APP_ID,
     }

@@ -4,17 +4,22 @@ import hmac
 import json
 import os
 from dotenv import load_dotenv
+from typing import Optional
 
 from arq import create_pool
 from arq.connections import RedisSettings
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, RedirectResponse
+
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
 from app import crud
 from app.db import get_db_session
+from app.models import State, Priority
 
 load_dotenv()
 WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "").strip()
@@ -125,3 +130,63 @@ async def receive_github_webhook(
         print(f" Saved webhook event to DB: {event_type} (Delivery ID: {delivery_id})")
 
     return {"status": "accepted", "delivery_id": delivery_id}
+
+@app.get("/api/stats")
+async def get_summary(db: AsyncSession = Depends(get_db_session)):
+    total = await crud.count_issues(db)
+    open_count = await crud.count_issues(db, state=State.OPEN)
+    high_priority = await crud.count_issues(db, priority=Priority.HIGH)
+    duplicates = await crud.count_issues(db, is_duplicate=True)
+
+    return {
+        "total": total or 0,
+        "open_count": open_count or 0,
+        "high_priority": high_priority or 0,
+        "duplicates": duplicates or 0,
+    }
+
+@app.get("/api/issues")
+async def get_issues(
+    priority: str | None = None,
+    is_duplicate: bool | None = None,
+    search: str | None = None,
+    db: AsyncSession = Depends(get_db_session),
+):
+    priority_enum = None
+    if priority:
+        try:
+            priority_enum = Priority(priority.lower())
+        except ValueError:
+            pass
+
+    issues = await crud.get_issues(
+        db=db,
+        priority=priority_enum,
+        is_duplicate=is_duplicate,
+        search=search,
+    )
+    return [
+        {
+            "id": str(i.id),
+            "issue_number": i.issue_number,
+            "repo_name": i.repo_name,
+            "title": i.title,
+            "body": i.body,
+            "author": i.author,
+            "state": i.state.value if i.state else None,
+            "priority": i.priority.value if i.priority else None,
+            "ai_summary": i.ai_summary,
+            "draft_reply": i.draft_reply,
+            "duplicate_of_id": str(i.duplicate_of_id) if i.duplicate_of_id else None,
+            "created_at": i.created_at.isoformat() if i.created_at else None,
+        }
+        for i in issues
+    ]
+# Mount static folder
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+@app.get("/dashboard")
+async def serve_dashboard():
+    return FileResponse("app/static/index.html")
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/dashboard")
