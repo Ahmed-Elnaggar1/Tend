@@ -8,28 +8,28 @@ An event-driven, production-grade AI maintainer assistant for GitHub repositorie
 
 ```mermaid
 flowchart TD
-    A[GitHub Event: Issue Opened] -->|HMAC-SHA256 Signed| B[FastAPI Webhook Receiver]
-    B -->|Verify Signature & Idempotency| C[(PostgreSQL Raw Events)]
-    B -->|Fast 202 Accepted <15ms| G[Enqueued Job]
-    G --> D[(Redis Job Queue)]
+    A["GitHub Event: Issue Opened"] -->|HMAC-SHA256 Signed| B["FastAPI Webhook Receiver"]
+    B -->|Verify Signature & Idempotency| C[("PostgreSQL Raw Events")]
+    B -->|Fast 202 Accepted| G["Enqueued Job"]
+    G --> D[("Redis Job Queue")]
     
-    subgraph Background Worker (ARQ)
-        D --> E[Worker: triage_issue_task]
-        E -->|Generate 768-d Vector| F[Google Gemini Embedding]
-        F -->|Cosine Distance <=> <= 0.2| H[(pgvector Table)]
+    subgraph Worker ["Background Worker (ARQ)"]
+        D --> E["Worker: triage_issue_task"]
+        E -->|Generate 768-d Vector| F["Google Gemini Embedding"]
+        F -->|Cosine Distance <= 0.2| H[("pgvector Table")]
         
-        H -->|Duplicate Found?| I{Match Found?}
-        I -->|YES| J[Mark Duplicate of #X & Generate Friendly Link]
-        I -->|NO| K[Run Structured Gemini AI Triage: Priority + Category + Reply]
+        H -->|Duplicate Found?| I{"Match Found?"}
+        I -->|YES| J["Mark Duplicate of #X & Generate Friendly Link"]
+        I -->|NO| K["Run Structured Gemini AI Triage"]
         
-        J --> L[GitHub App Bot Action]
+        J --> L["GitHub App Bot Action"]
         K --> L
     end
     
-    L -->|Post Comment + Apply Labels| M[GitHub Issue API]
+    L -->|Post Comment + Apply Labels| M["GitHub Issue API"]
     
-    subgraph Maintainer Web Dashboard
-        N[Browser / Client] -->|GET /dashboard| O[FastAPI Static Server]
+    subgraph Dashboard ["Maintainer Web Dashboard"]
+        N["Browser / Client"] -->|GET /dashboard| O["FastAPI Static Server"]
         N -->|GET /api/stats & /api/issues| B
     end
 ```
